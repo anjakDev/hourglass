@@ -1,5 +1,5 @@
 # hourglass
-
+<p align='center'><img src="logo_simple.png" width="200" alt="hourglass logo"></br></p>
 A keyboard-driven terminal time tracker. Create projects, start a timer, take breaks, stop — all without leaving your terminal. Session history and daily totals are persisted locally in SQLite.
 
 ## Tech stack
