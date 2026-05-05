@@ -5,7 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/anjakDev/hourglass/internal/db"
+	"github.com/anjakDev/hourglass/internal/repository"
+	"github.com/anjakDev/hourglass/internal/tui"
 )
 
 func main() {
@@ -22,8 +26,15 @@ func main() {
 	}
 	defer conn.Close()
 
-	fmt.Println("hourglass — database ready at", dbPath)
-	// TODO: start Bubbletea TUI
+	pr := repository.NewProjectRepo(conn)
+	sr := repository.NewSessionRepo(conn)
+	app := tui.New(pr, sr)
+
+	p := tea.NewProgram(app, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "hourglass: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func defaultDBPath() (string, error) {
