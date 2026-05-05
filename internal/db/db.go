@@ -29,18 +29,18 @@ func Open(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	// Restrict file permissions to owner-only on real files.
-	// SQLite creates the file on Open, so Chmod is safe to call here.
+	// pragma forces the first real connection, which creates the file on disk.
+	// Chmod must come after so the file exists.
+	if err := pragma(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+
 	if path != ":memory:" {
 		if err := os.Chmod(path, 0o600); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("set db file permissions: %w", err)
 		}
-	}
-
-	if err := pragma(db); err != nil {
-		db.Close()
-		return nil, err
 	}
 
 	if err := migrate(db); err != nil {
