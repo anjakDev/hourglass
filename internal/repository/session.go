@@ -140,6 +140,15 @@ func (r *SessionRepo) TodayTotalsByProject() ([]ProjectTotal, error) {
 	return totals, rows.Err()
 }
 
+// DeleteAllSessions removes every session (open or closed) for the given project.
+func (r *SessionRepo) DeleteAllSessions(projectID int64) error {
+	_, err := r.db.Exec(`DELETE FROM sessions WHERE project_id = ?`, projectID)
+	if err != nil {
+		return fmt.Errorf("delete all sessions: %w", err)
+	}
+	return nil
+}
+
 // fillSession populates s from a single scanned row.
 // scan is either (*sql.Row).Scan or (*sql.Rows).Scan.
 func fillSession(s *Session, scan func(...any) error) error {

@@ -166,3 +166,61 @@ func TestSessionRepo_TodayTotalsByProject_IncludesOpenSession(t *testing.T) {
 	require.Len(t, totals, 1)
 	assert.Positive(t, totals[0].Total)
 }
+
+func TestSessionRepo_DeleteAllSessions(t *testing.T) {
+	_, pr, sr := newSessionTestDB(t)
+	pid := seedProject(t, pr, "Work")
+
+	now := time.Now().UTC().Truncate(time.Second)
+	id1, _ := sr.StartSession(pid, now)
+	sr.StopSession(id1, now.Add(30*time.Minute), 0)
+	id2, _ := sr.StartSession(pid, now.Add(time.Hour))
+	sr.StopSession(id2, now.Add(90*time.Minute), 0)
+
+	err := sr.DeleteAllSessions(pid)
+	require.NoError(t, err)
+
+	sessions, err := sr.ListToday()
+	require.NoError(t, err)
+	assert.Empty(t, sessions)
+}
+
+func TestSessionRepo_DeleteAllSessions_NoSessions(t *testing.T) {
+	_, pr, sr := newSessionTestDB(t)
+	pid := seedProject(t, pr, "Empty")
+
+	err := sr.DeleteAllSessions(pid)
+	assert.NoError(t, err)
+}
+
+func TestSessionRepo_DeleteAllSessions_OnlyAffectsTargetProject(t *testing.T) {
+	_, pr, sr := newSessionTestDB(t)
+	pid1 := seedProject(t, pr, "Work")
+	pid2 := seedProject(t, pr, "Side")
+
+	now := time.Now().UTC().Truncate(time.Second)
+	id1, _ := sr.StartSession(pid1, now)
+	sr.StopSession(id1, now.Add(30*time.Minute), 0)
+	id2, _ := sr.StartSession(pid2, now.Add(time.Hour))
+	sr.StopSession(id2, now.Add(90*time.Minute), 0)
+
+	require.NoError(t, sr.DeleteAllSessions(pid1))
+
+	sessions, err := sr.ListToday()
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	assert.Equal(t, pid2, sessions[0].ProjectID)
+}
+
+func TestSessionRepo_DeleteAllSessions_IncludesOpenSession(t *testing.T) {
+	_, pr, sr := newSessionTestDB(t)
+	pid := seedProject(t, pr, "Work")
+
+	now := time.Now().UTC().Truncate(time.Second)
+	sr.StartSession(pid, now) // open, not stopped
+
+	require.NoError(t, sr.DeleteAllSessions(pid))
+
+	_, err := sr.ActiveSession()
+	assert.ErrorIs(t, err, repository.ErrNotFound)
+}

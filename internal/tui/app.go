@@ -27,6 +27,7 @@ const (
 type projectsLoadedMsg struct{ items []repository.ProjectTotal }
 type projectCreatedMsg struct{}
 type projectArchivedMsg struct{}
+type sessionWipedMsg struct{}
 type sessionStartedMsg struct {
 	sessionID   int64
 	projectID   int64
@@ -124,6 +125,22 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case projectArchivedMsg:
+		return a, a.loadProjects()
+
+	case pv.WipeSessionsMsg:
+		id := msg.ProjectID
+		if id == a.activeProjectID {
+			_, _ = a.timer.Stop(time.Now().UTC())
+			a.activeSessionID = 0
+			a.activeProjectID = 0
+			a.active = viewProjects
+		}
+		return a, func() tea.Msg {
+			_ = a.sessionRepo.DeleteAllSessions(id)
+			return sessionWipedMsg{}
+		}
+
+	case sessionWipedMsg:
 		return a, a.loadProjects()
 
 	case pv.StartSessionMsg:
