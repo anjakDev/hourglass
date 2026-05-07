@@ -156,3 +156,48 @@ func TestProjects_View_EmptyState(t *testing.T) {
 	m := projects.New()
 	assert.Contains(t, m.View(), "No projects")
 }
+
+func TestProjects_Wipe_EmptyList(t *testing.T) {
+	var m tea.Model = projects.New()
+	_, cmd := m.Update(key('w'))
+	assert.Nil(t, cmd)
+}
+
+func TestProjects_Wipe_FirstPressArmsConfirmation(t *testing.T) {
+	m := projects.New().SetItems(threeItems())
+	updated, cmd := m.Update(key('w'))
+	assert.Nil(t, cmd)
+	assert.Contains(t, updated.(projects.Model).View(), "confirm")
+}
+
+func TestProjects_Wipe_SecondPressEmitsMsg(t *testing.T) {
+	var m tea.Model = projects.New().SetItems(threeItems())
+	m, _ = m.Update(key('w')) // arm
+	_, cmd := m.Update(key('w')) // confirm
+	require.NotNil(t, cmd)
+	assert.Equal(t, projects.WipeSessionsMsg{ProjectID: 1}, cmd())
+}
+
+func TestProjects_Wipe_EscCancels(t *testing.T) {
+	var m tea.Model = projects.New().SetItems(threeItems())
+	m, _ = m.Update(key('w')) // arm
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	assert.Nil(t, cmd)
+	assert.NotContains(t, updated.(projects.Model).View(), "confirm")
+}
+
+func TestProjects_Wipe_NavigationCancels(t *testing.T) {
+	var m tea.Model = projects.New().SetItems(threeItems())
+	m, _ = m.Update(key('w')) // arm
+	updated, _ := m.Update(key('j'))
+	assert.NotContains(t, updated.(projects.Model).View(), "confirm")
+}
+
+func TestProjects_Wipe_TargetsCurrentCursor(t *testing.T) {
+	var m tea.Model = projects.New().SetItems(threeItems())
+	m, _ = m.Update(key('j')) // move to Beta (ID 2)
+	m, _ = m.Update(key('w'))
+	_, cmd := m.Update(key('w'))
+	require.NotNil(t, cmd)
+	assert.Equal(t, projects.WipeSessionsMsg{ProjectID: 2}, cmd())
+}

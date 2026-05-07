@@ -45,6 +45,9 @@ var (
 
 	// TotalCol right-aligns duration totals.
 	TotalCol = lipgloss.NewStyle().Foreground(colorMuted)
+
+	// Warn highlights destructive confirmation prompts.
+	Warn = lipgloss.NewStyle().Foreground(colorDanger).Bold(true)
 )
 
 // FormatDuration formats a duration as "1h 23m" or "45m" or "0m".
