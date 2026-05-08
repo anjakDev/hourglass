@@ -176,12 +176,29 @@ func TestApp_StartSession_SwitchesToTimerView(t *testing.T) {
 	assert.Contains(t, m.View(), "[s]")    // stop hint present
 }
 
-func TestApp_StopSession_ReturnsToProjects(t *testing.T) {
+func TestApp_StopSession_ShowsEditView(t *testing.T) {
 	m, _ := appAtTimerView(t)
 
-	// 's' → StopSessionMsg → sessionStoppedMsg → projectsLoadedMsg
+	// 's' → StopSessionMsg → viewEditSession
 	var cmd tea.Cmd
 	m, cmd = pressRune(m, 's')
+	m, _ = step(m, cmd)
+
+	assert.Contains(t, m.View(), "Edit session")
+	assert.Contains(t, m.View(), "Work")
+}
+
+func TestApp_StopSession_SaveReturnsToProjects(t *testing.T) {
+	m, _ := appAtTimerView(t)
+
+	// 's' → StopSessionMsg → viewEditSession
+	var cmd tea.Cmd
+	m, cmd = pressRune(m, 's')
+	m, _ = step(m, cmd)
+	require.Contains(t, m.View(), "Edit session")
+
+	// Enter → SaveMsg → sessionStoppedMsg → projectsLoadedMsg
+	m, cmd = pressSpecial(m, tea.KeyEnter)
 	m, cmd = step(m, cmd)
 	m, cmd = step(m, cmd)
 	m, _ = step(m, cmd)
@@ -192,8 +209,12 @@ func TestApp_StopSession_ReturnsToProjects(t *testing.T) {
 func TestApp_StopSession_WritesToDB(t *testing.T) {
 	m, sr := appAtTimerView(t)
 
+	// 's' → viewEditSession, then Enter → SaveMsg → DB write
 	var cmd tea.Cmd
 	m, cmd = pressRune(m, 's')
+	m, _ = step(m, cmd)
+
+	m, cmd = pressSpecial(m, tea.KeyEnter)
 	m, cmd = step(m, cmd)
 	m, cmd = step(m, cmd)
 	m, _ = step(m, cmd)

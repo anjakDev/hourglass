@@ -50,7 +50,14 @@ All tests use an in-memory SQLite database — no setup required.
 ### Timer
 - Start a session for the selected project (`s` or `enter`)
 - Toggle break / resume (`b`) while a session is running
-- Stop the session (`s`) — elapsed work time and break duration are saved to the database
+- Stop the session (`s`) — opens the session editor before saving
+
+### Session editor
+Shown automatically after stopping a session. Useful for correcting sessions that were started but forgotten to be stopped.
+- Displays start time, end time, and net duration
+- Navigate between start and end fields; press `e` to edit the highlighted field
+- Duration recalculates automatically after each edit
+- Press `enter` to save (with or without edits), or `esc` to revert to the original times
 
 ### Session log
 - View today's sessions for any project (`l`)
@@ -78,6 +85,22 @@ All tests use an in-memory SQLite database — no setup required.
 |---|---|
 | `b` | Toggle break / resume |
 | `s` | Stop session |
+
+### Session editor
+| Key | Action |
+|---|---|
+| `tab` / `j` / `k` | Switch between start and end fields |
+| `e` | Edit the selected field |
+| `enter` | Save session |
+| `esc` | Revert to original times and save |
+
+**While editing a field:**
+| Key | Action |
+|---|---|
+| `enter` | Confirm the new time (`YYYY-MM-DD HH:MM`) |
+| `esc` | Discard edit, return to summary |
+| `ctrl+u` | Clear input |
+| `backspace` | Delete last character |
 
 ### Session log
 | Key | Action |

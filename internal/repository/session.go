@@ -140,6 +140,19 @@ func (r *SessionRepo) TodayTotalsByProject() ([]ProjectTotal, error) {
 	return totals, rows.Err()
 }
 
+// UpdateSession overwrites the start time, end time, and break duration for a
+// session. Used when the user edits a just-stopped session.
+func (r *SessionRepo) UpdateSession(id int64, startedAt, endedAt time.Time, breakSeconds int64) error {
+	res, err := r.db.Exec(
+		`UPDATE sessions SET started_at = ?, ended_at = ?, break_duration_seconds = ? WHERE id = ?`,
+		startedAt.UTC().Unix(), endedAt.UTC().Unix(), breakSeconds, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update session: %w", err)
+	}
+	return requireAffected(res)
+}
+
 // DeleteAllSessions removes every session (open or closed) for the given project.
 func (r *SessionRepo) DeleteAllSessions(projectID int64) error {
 	_, err := r.db.Exec(`DELETE FROM sessions WHERE project_id = ?`, projectID)

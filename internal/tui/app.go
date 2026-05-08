@@ -9,6 +9,7 @@ import (
 	"github.com/anjakDev/hourglass/internal/timer"
 	"github.com/anjakDev/hourglass/internal/tui/styles"
 	"github.com/anjakDev/hourglass/internal/tui/views/activetimer"
+	"github.com/anjakDev/hourglass/internal/tui/views/editsession"
 	"github.com/anjakDev/hourglass/internal/tui/views/newproject"
 	pv "github.com/anjakDev/hourglass/internal/tui/views/projects"
 	"github.com/anjakDev/hourglass/internal/tui/views/sessionlog"
@@ -17,10 +18,11 @@ import (
 type viewID int
 
 const (
-	viewProjects   viewID = iota
-	viewNewProject        // new-project text-input form
-	viewActiveTimer       // live running timer
-	viewSessionLog        // read-only today's session list
+	viewProjects    viewID = iota
+	viewNewProject         // new-project text-input form
+	viewActiveTimer        // live running timer
+	viewSessionLog         // read-only today's session list
+	viewEditSession        // post-stop session time editor
 )
 
 // Internal messages produced by tea.Cmd closures after DB operations.
@@ -49,14 +51,17 @@ type App struct {
 	sessionRepo *repository.SessionRepo
 	timer       *timer.Timer
 
-	activeSessionID int64
-	activeProjectID int64
-	width, height   int
+	activeSessionID   int64
+	activeProjectID   int64
+	activeProjectName string
+	pendingBreakSec   int64 // break seconds recorded at stop, held until edit is committed
+	width, height     int
 
 	projects    pv.Model
 	newProject  newproject.Model
 	activeTimer activetimer.Model
 	sessionLog  sessionlog.Model
+	editSession editsession.Model
 }
 
 // New constructs the root app model. Repos are shared with all cmd closures.
@@ -173,6 +178,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		a.activeSessionID = msg.sessionID
 		a.activeProjectID = msg.projectID
+		a.activeProjectName = msg.projectName
 		a.activeTimer = activetimer.New(msg.projectName, a.timer, msg.startedAt)
 		a.active = viewActiveTimer
 		return a, a.activeTimer.Init()
@@ -227,17 +233,26 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return a, nil // timer wasn't running
 		}
+		a.pendingBreakSec = int64(sess.TotalBreak.Seconds())
+		a.editSession = editsession.New(a.activeProjectName, sess.StartedAt, sess.EndedAt)
+		a.active = viewEditSession
+		return a, a.editSession.Init()
+
+	case editsession.SaveMsg:
 		sid := a.activeSessionID
-		endedAt := sess.EndedAt
-		breakSec := int64(sess.TotalBreak.Seconds())
+		startedAt := msg.StartedAt
+		endedAt := msg.EndedAt
+		breakSec := a.pendingBreakSec
 		return a, func() tea.Msg {
-			_ = a.sessionRepo.StopSession(sid, endedAt, breakSec)
+			_ = a.sessionRepo.UpdateSession(sid, startedAt, endedAt, breakSec)
 			return sessionStoppedMsg{}
 		}
 
 	case sessionStoppedMsg:
 		a.activeSessionID = 0
 		a.activeProjectID = 0
+		a.activeProjectName = ""
+		a.pendingBreakSec = 0
 		a.active = viewProjects
 		return a, a.loadProjects()
 
@@ -269,6 +284,10 @@ func (a App) forwardToActiveView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := a.sessionLog.Update(msg)
 		a.sessionLog = next.(sessionlog.Model)
 		return a, cmd
+	case viewEditSession:
+		next, cmd := a.editSession.Update(msg)
+		a.editSession = next.(editsession.Model)
+		return a, cmd
 	}
 	return a, nil
 }
@@ -283,6 +302,8 @@ func (a App) View() string {
 		return a.activeTimer.View()
 	case viewSessionLog:
 		return a.sessionLog.View()
+	case viewEditSession:
+		return a.editSession.View()
 	default:
 		return styles.Muted.Render("loading…")
 	}

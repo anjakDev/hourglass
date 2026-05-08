@@ -212,6 +212,32 @@ func TestSessionRepo_DeleteAllSessions_OnlyAffectsTargetProject(t *testing.T) {
 	assert.Equal(t, pid2, sessions[0].ProjectID)
 }
 
+func TestSessionRepo_UpdateSession_UpdatesBothTimes(t *testing.T) {
+	_, pr, sr := newSessionTestDB(t)
+	pid := seedProject(t, pr, "Work")
+
+	base := time.Now().UTC().Truncate(time.Second)
+	id, err := sr.StartSession(pid, base)
+	require.NoError(t, err)
+
+	newStart := base.Add(-30 * time.Minute)
+	newEnd := base.Add(60 * time.Minute)
+	require.NoError(t, sr.UpdateSession(id, newStart, newEnd, 0))
+
+	sessions, err := sr.ListToday()
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	assert.True(t, newStart.Equal(sessions[0].StartedAt), "started_at mismatch")
+	require.NotNil(t, sessions[0].EndedAt)
+	assert.True(t, newEnd.Equal(*sessions[0].EndedAt), "ended_at mismatch")
+}
+
+func TestSessionRepo_UpdateSession_NotFound(t *testing.T) {
+	_, _, sr := newSessionTestDB(t)
+	err := sr.UpdateSession(9999, time.Now(), time.Now().Add(time.Hour), 0)
+	assert.ErrorIs(t, err, repository.ErrNotFound)
+}
+
 func TestSessionRepo_DeleteAllSessions_IncludesOpenSession(t *testing.T) {
 	_, pr, sr := newSessionTestDB(t)
 	pid := seedProject(t, pr, "Work")
