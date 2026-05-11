@@ -132,6 +132,9 @@ func (m Model) updateEditing(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyCtrlU:
 		m.inputValue = ""
 		return m, nil
+	case tea.KeySpace:
+		m.inputValue += " "
+		return m, nil
 	case tea.KeyRunes:
 		m.inputValue += string(key.Runes)
 		return m, nil

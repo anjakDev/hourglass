@@ -25,10 +25,15 @@ func key(r rune) tea.KeyMsg {
 }
 
 // typeString clears the current input then types each character of s.
+// Space is sent as tea.KeySpace to match real terminal behaviour.
 func typeString(m tea.Model, s string) tea.Model {
 	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlU})
 	for _, r := range s {
-		m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		if r == ' ' {
+			m, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+		} else {
+			m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		}
 	}
 	return m
 }
@@ -262,6 +267,15 @@ func TestEditSession_View_ShowsEditingHint(t *testing.T) {
 	start, end := fixedTimes()
 	m, _ := editsession.New("Alpha", start, end).Update(key('e'))
 	assert.Contains(t, m.(editsession.Model).View(), "confirm")
+}
+
+func TestEditSession_EditMode_SpaceCharacterTyped(t *testing.T) {
+	start, end := fixedTimes()
+	var m tea.Model = editsession.New("Alpha", start, end)
+	m, _ = m.Update(key('e'))
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlU})
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	assert.Equal(t, " ", m.(editsession.Model).InputValue())
 }
 
 func TestEditSession_View_ShowsError(t *testing.T) {
