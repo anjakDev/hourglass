@@ -153,6 +153,8 @@ type DailyProjectBreakdown struct {
 // session appear in the result; missing days must be filled in by the caller.
 func (r *SessionRepo) DailyBreakdownByProjectInRange(start, end time.Time) ([]DailyProjectBreakdown, error) {
 	nowUnix := time.Now().UTC().Unix()
+	// Integer division by 86400 (seconds per day) floors each timestamp to midnight UTC,
+	// grouping all sessions on the same calendar day into one bucket.
 	rows, err := r.db.Query(
 		`SELECT s.project_id, p.name,
 		        (s.started_at / 86400) * 86400 AS day_ts,
