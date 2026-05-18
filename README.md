@@ -10,13 +10,12 @@ A keyboard-driven terminal time tracker. Create projects, start a timer, take br
 | TUI framework | [Bubbletea](https://github.com/charmbracelet/bubbletea) |
 | Styling | [Lipgloss](https://github.com/charmbracelet/lipgloss) |
 | UI components | [Bubbles](https://github.com/charmbracelet/bubbles) (textinput) |
-| Database | SQLite via [go-sqlite3](https://github.com/mattn/go-sqlite3) (CGO) |
+| Database | SQLite via [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) (pure Go, no CGO) |
 | Testing | [testify](https://github.com/stretchr/testify) |
 
 ## Requirements
 
 - Go 1.22+
-- A C compiler (required by `go-sqlite3` — `gcc` or `clang`)
 
 ## Build
 
