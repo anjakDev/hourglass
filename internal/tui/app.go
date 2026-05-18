@@ -12,6 +12,7 @@ import (
 	"github.com/anjakDev/hourglass/internal/tui/views/editsession"
 	"github.com/anjakDev/hourglass/internal/tui/views/newproject"
 	pv "github.com/anjakDev/hourglass/internal/tui/views/projects"
+	rv "github.com/anjakDev/hourglass/internal/tui/views/reports"
 	"github.com/anjakDev/hourglass/internal/tui/views/sessionlog"
 )
 
@@ -23,6 +24,7 @@ const (
 	viewActiveTimer        // live running timer
 	viewSessionLog         // read-only today's session list
 	viewEditSession        // post-stop session time editor
+	viewReports            // daily/weekly/monthly summaries
 )
 
 // Internal messages produced by tea.Cmd closures after DB operations.
@@ -41,6 +43,11 @@ type sessionStoppedMsg struct{}
 type sessionLogLoadedMsg struct {
 	projectName string
 	sessions    []repository.Session
+}
+type reportsDataLoadedMsg struct {
+	daily   []repository.ProjectTotal
+	weekly  []repository.DailyProjectBreakdown
+	monthly []repository.DailyProjectBreakdown
 }
 
 // App is the root Bubbletea model. It owns the repos and timer, manages
@@ -62,6 +69,7 @@ type App struct {
 	activeTimer activetimer.Model
 	sessionLog  sessionlog.Model
 	editSession editsession.Model
+	reportsView rv.Model
 }
 
 // New constructs the root app model. Repos are shared with all cmd closures.
@@ -101,6 +109,26 @@ func (a App) loadProjects() tea.Cmd {
 			}
 		}
 		return projectsLoadedMsg{items: items}
+	}
+}
+
+func (a App) loadReportsData() tea.Cmd {
+	return func() tea.Msg {
+		daily, _ := a.sessionRepo.TodayTotalsByProject()
+
+		now := time.Now().UTC()
+		wd := int(now.Weekday())
+		if wd == 0 {
+			wd = 7
+		}
+		mon := now.AddDate(0, 0, -(wd - 1))
+		weekS := time.Date(mon.Year(), mon.Month(), mon.Day(), 0, 0, 0, 0, time.UTC)
+		weekly, _ := a.sessionRepo.DailyBreakdownByProjectInRange(weekS, weekS.AddDate(0, 0, 7))
+
+		monthS := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+		monthly, _ := a.sessionRepo.DailyBreakdownByProjectInRange(monthS, monthS.AddDate(0, 1, 0))
+
+		return reportsDataLoadedMsg{daily: daily, weekly: weekly, monthly: monthly}
 	}
 }
 
@@ -208,6 +236,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.active = viewSessionLog
 		return a, nil
 
+	case pv.ShowReportsMsg:
+		return a, a.loadReportsData()
+
+	case reportsDataLoadedMsg:
+		a.reportsView = rv.New(msg.daily, msg.weekly, msg.monthly)
+		a.active = viewReports
+		return a, nil
+
+	case rv.BackMsg:
+		a.active = viewProjects
+		return a, nil
+
 	// ── newproject view ───────────────────────────────────────────────────
 
 	case newproject.CreatedMsg:
@@ -288,6 +328,10 @@ func (a App) forwardToActiveView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, cmd := a.editSession.Update(msg)
 		a.editSession = next.(editsession.Model)
 		return a, cmd
+	case viewReports:
+		next, cmd := a.reportsView.Update(msg)
+		a.reportsView = next.(rv.Model)
+		return a, cmd
 	}
 	return a, nil
 }
@@ -304,6 +348,8 @@ func (a App) View() string {
 		return a.sessionLog.View()
 	case viewEditSession:
 		return a.editSession.View()
+	case viewReports:
+		return a.reportsView.View()
 	default:
 		return styles.Muted.Render("loading…")
 	}
