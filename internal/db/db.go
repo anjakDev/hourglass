@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 //go:embed migrations/*.sql
@@ -24,7 +24,7 @@ func Open(path string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open("sqlite3", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
@@ -65,13 +65,13 @@ func pragma(db *sql.DB) error {
 	return nil
 }
 
-// buildDSN constructs the SQLite DSN, rejecting paths that already contain
-// query-string characters which would silently corrupt the DSN.
+// buildDSN validates the path and returns it as the DSN.
+// Pragmas are applied separately via pragma().
 func buildDSN(path string) (string, error) {
 	if path != ":memory:" && strings.ContainsAny(path, "?&") {
 		return "", fmt.Errorf("db path must not contain '?' or '&': %q", path)
 	}
-	return path + "?_foreign_keys=on&_journal_mode=WAL", nil
+	return path, nil
 }
 
 func migrate(db *sql.DB) error {
