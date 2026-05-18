@@ -232,6 +232,78 @@ func TestSessionRepo_UpdateSession_UpdatesBothTimes(t *testing.T) {
 	assert.True(t, newEnd.Equal(*sessions[0].EndedAt), "ended_at mismatch")
 }
 
+func TestSessionRepo_DailyBreakdownByProjectInRange_Basic(t *testing.T) {
+	_, pr, sr := newSessionTestDB(t)
+	pid1 := seedProject(t, pr, "Alpha")
+	pid2 := seedProject(t, pr, "Beta")
+
+	monday := time.Date(2026, 1, 5, 10, 0, 0, 0, time.UTC)
+	tuesday := time.Date(2026, 1, 6, 10, 0, 0, 0, time.UTC)
+
+	id1, _ := sr.StartSession(pid1, monday)
+	sr.StopSession(id1, monday.Add(time.Hour), 0)
+
+	id2, _ := sr.StartSession(pid2, tuesday)
+	sr.StopSession(id2, tuesday.Add(2*time.Hour), 0)
+
+	weekS := time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
+	breakdown, err := sr.DailyBreakdownByProjectInRange(weekS, weekS.AddDate(0, 0, 7))
+	require.NoError(t, err)
+	require.Len(t, breakdown, 2)
+
+	assert.Equal(t, "Alpha", breakdown[0].ProjectName)
+	assert.Equal(t, time.Hour, breakdown[0].Total)
+	assert.True(t, breakdown[0].Date.Equal(time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)))
+
+	assert.Equal(t, "Beta", breakdown[1].ProjectName)
+	assert.Equal(t, 2*time.Hour, breakdown[1].Total)
+	assert.True(t, breakdown[1].Date.Equal(time.Date(2026, 1, 6, 0, 0, 0, 0, time.UTC)))
+}
+
+func TestSessionRepo_DailyBreakdownByProjectInRange_Empty(t *testing.T) {
+	_, _, sr := newSessionTestDB(t)
+	weekS := time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
+	breakdown, err := sr.DailyBreakdownByProjectInRange(weekS, weekS.AddDate(0, 0, 7))
+	require.NoError(t, err)
+	assert.Empty(t, breakdown)
+}
+
+func TestSessionRepo_DailyBreakdownByProjectInRange_ExcludesOutOfRange(t *testing.T) {
+	_, pr, sr := newSessionTestDB(t)
+	pid := seedProject(t, pr, "Work")
+
+	inRange := time.Date(2026, 1, 7, 10, 0, 0, 0, time.UTC)
+	outOfRange := time.Date(2026, 1, 14, 10, 0, 0, 0, time.UTC)
+
+	id1, _ := sr.StartSession(pid, inRange)
+	sr.StopSession(id1, inRange.Add(time.Hour), 0)
+	id2, _ := sr.StartSession(pid, outOfRange)
+	sr.StopSession(id2, outOfRange.Add(time.Hour), 0)
+
+	weekS := time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
+	breakdown, err := sr.DailyBreakdownByProjectInRange(weekS, weekS.AddDate(0, 0, 7))
+	require.NoError(t, err)
+	require.Len(t, breakdown, 1)
+	assert.Equal(t, time.Hour, breakdown[0].Total)
+}
+
+func TestSessionRepo_DailyBreakdownByProjectInRange_MultipleSessionsSameDay(t *testing.T) {
+	_, pr, sr := newSessionTestDB(t)
+	pid := seedProject(t, pr, "Work")
+
+	day := time.Date(2026, 1, 5, 9, 0, 0, 0, time.UTC)
+	id1, _ := sr.StartSession(pid, day)
+	sr.StopSession(id1, day.Add(time.Hour), 0)
+	id2, _ := sr.StartSession(pid, day.Add(2*time.Hour))
+	sr.StopSession(id2, day.Add(3*time.Hour), 0)
+
+	weekS := time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
+	breakdown, err := sr.DailyBreakdownByProjectInRange(weekS, weekS.AddDate(0, 0, 7))
+	require.NoError(t, err)
+	require.Len(t, breakdown, 1)
+	assert.Equal(t, 2*time.Hour, breakdown[0].Total)
+}
+
 func TestSessionRepo_UpdateSession_NotFound(t *testing.T) {
 	_, _, sr := newSessionTestDB(t)
 	err := sr.UpdateSession(9999, time.Now(), time.Now().Add(time.Hour), 0)

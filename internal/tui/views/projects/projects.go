@@ -16,6 +16,7 @@ type NewProjectMsg struct{}
 type ArchiveMsg struct{ ProjectID int64 }
 type ShowSessionLogMsg struct{ ProjectID int64 }
 type WipeSessionsMsg struct{ ProjectID int64 }
+type ShowReportsMsg struct{}
 
 const nameColWidth = 28
 
@@ -82,6 +83,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		id := m.items[m.cursor].ProjectID
 		return m, func() tea.Msg { return ShowSessionLogMsg{ProjectID: id} }
+	case "r":
+		m.pendingWipe = false
+		return m, func() tea.Msg { return ShowReportsMsg{} }
 	case "w":
 		if len(m.items) == 0 {
 			return m, nil
@@ -122,7 +126,7 @@ func (m Model) View() string {
 	if m.pendingWipe {
 		sb.WriteString("\n" + styles.Warn.Render("  Wipe ALL sessions for this project? Press [w] again to confirm or [esc] to cancel"))
 	} else {
-		sb.WriteString("\n" + styles.StatusBar.Render("  [s] start  [n] new  [a] archive  [l] log  [w] wipe  [q] quit"))
+		sb.WriteString("\n" + styles.StatusBar.Render("  [s] start  [n] new  [a] archive  [l] log  [r] reports  [w] wipe  [q] quit"))
 	}
 	return sb.String()
 }

@@ -140,6 +140,49 @@ func (r *SessionRepo) TodayTotalsByProject() ([]ProjectTotal, error) {
 	return totals, rows.Err()
 }
 
+// DailyProjectBreakdown holds the total work time for one project on one calendar day.
+type DailyProjectBreakdown struct {
+	ProjectID   int64
+	ProjectName string
+	Date        time.Time // midnight UTC of the day
+	Total       time.Duration
+}
+
+// DailyBreakdownByProjectInRange returns per-project, per-day work totals for
+// sessions that started within [start, end). Only days with at least one
+// session appear in the result; missing days must be filled in by the caller.
+func (r *SessionRepo) DailyBreakdownByProjectInRange(start, end time.Time) ([]DailyProjectBreakdown, error) {
+	nowUnix := time.Now().UTC().Unix()
+	rows, err := r.db.Query(
+		`SELECT s.project_id, p.name,
+		        (s.started_at / 86400) * 86400 AS day_ts,
+		        SUM(COALESCE(s.ended_at, ?) - s.started_at - s.break_duration_seconds) AS work_seconds
+		 FROM sessions s
+		 JOIN projects p ON p.id = s.project_id
+		 WHERE s.started_at >= ? AND s.started_at < ?
+		 GROUP BY s.project_id, p.name, (s.started_at / 86400)
+		 ORDER BY p.name, day_ts`,
+		nowUnix, start.UTC().Unix(), end.UTC().Unix(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("daily breakdown: %w", err)
+	}
+	defer rows.Close()
+
+	var result []DailyProjectBreakdown
+	for rows.Next() {
+		var b DailyProjectBreakdown
+		var dayTS, workSeconds int64
+		if err := rows.Scan(&b.ProjectID, &b.ProjectName, &dayTS, &workSeconds); err != nil {
+			return nil, fmt.Errorf("scan breakdown row: %w", err)
+		}
+		b.Date = time.Unix(dayTS, 0).UTC()
+		b.Total = time.Duration(workSeconds) * time.Second
+		result = append(result, b)
+	}
+	return result, rows.Err()
+}
+
 // UpdateSession overwrites the start time, end time, and break duration for a
 // session. Used when the user edits a just-stopped session.
 func (r *SessionRepo) UpdateSession(id int64, startedAt, endedAt time.Time, breakSeconds int64) error {
