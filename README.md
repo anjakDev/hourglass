@@ -67,6 +67,12 @@ Shown automatically after stopping a session. Useful for correcting sessions tha
 ### Daily totals
 - The project list shows today's total tracked time per project at a glance
 
+### Reports
+- Press `r` from the project list to open the reports view
+- Three modes: **daily** (today's totals per project), **weekly** (current Mon–Sun with sparkline), **monthly** (current month with sparkline)
+- Sparklines show relative activity per day using Unicode block characters (`▁▂▃▄▅▆▇█`)
+- Toggle modes with `d` / `w` / `m`
+
 ## Keybindings
 
 ### Project list
@@ -78,6 +84,7 @@ Shown automatically after stopping a session. Useful for correcting sessions tha
 | `n` | New project |
 | `a` | Archive selected project |
 | `l` | View today's session log |
+| `r` | Open reports |
 | `q` / `ctrl+c` | Quit |
 
 ### Active timer
@@ -119,8 +126,8 @@ Migrations run automatically on startup from embedded SQL files — no manual sc
 ## Roadmap
 
 ### Phase 2 — Reports
-- Daily / weekly / monthly summaries per project
-- Unicode sparkline charts in the TUI
+- ✅ Daily / weekly / monthly summaries per project
+- ✅ Unicode sparkline charts in the TUI
 - Goal tracking: set a target hours/week per project, show a progress bar
 - Export to CSV, JSON, or Markdown
 
